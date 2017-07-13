@@ -47,10 +47,14 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
         $this->uri = new Uri($this->remoteAddress);
         $port = $this->uri->getPort() ?? 80;
 
+        if (!in_array($this->uri->getScheme(), ['ws', 'wss'])) {
+            throw new \InvalidArgumentException('WebSocket address must use ws: or wss: scheme');
+        }
+
         $connectUri = '';
         if ($this->uri->getScheme() === 'wss') {
             $connectUri = 'tls://';
-            $port = 443;
+            $port = $this->uri->getPort() ?? 443;;
         }
 
         $this->connectUri = $connectUri . $this->uri->getHost() . ':' . $port;
@@ -75,7 +79,9 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
             $cn = new ClientNegotiator();
             /** @var RequestInterface $request */
             $request = $cn->generateRequest($this->uri);
-            $request = $request->withHeader('Sec-WebSocket-Protocol', 'wamp.2.json');
+            $request = $request
+                ->withHeader('Sec-WebSocket-Protocol', 'wamp.2.json')
+                ->withHeader('User-Agent', 'thruway_websocket-client-transport/0.6.x-dev');
 
             $conn->write(str($request));
 
@@ -146,7 +152,6 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
 
                     public function sendMessage(\Thruway\Message\Message $msg)
                     {
-                        echo "Sending " . json_encode($msg) . "\n";
                         $this->mb->sendMessage($this->getSerializer()->serialize($msg));
                     }
                 };
@@ -157,9 +162,11 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
             });
             $conn->on('error', function ($error) {
                 Logger::error($this, 'Error during connect phase');
+                $this->client->onClose('Transport error');
             });
             $conn->on('end', function () {
                 Logger::debug($this, 'Connection closed');
+                $this->client->onClose('Transport close');
             });
         }, function ($error) {
             Logger::error($this, 'Connect error');
