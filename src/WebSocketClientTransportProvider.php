@@ -11,6 +11,7 @@ use Ratchet\RFC6455\Handshake\ClientNegotiator;
 use Ratchet\RFC6455\Handshake\ResponseVerifier;
 use Ratchet\RFC6455\Messaging\CloseFrameChecker;
 use Ratchet\RFC6455\Messaging\Frame;
+use Ratchet\RFC6455\Messaging\FrameInterface;
 use Ratchet\RFC6455\Messaging\Message;
 use Ratchet\RFC6455\Messaging\MessageBuffer;
 use React\EventLoop\LoopInterface;
@@ -43,23 +44,23 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
      */
     public function __construct($remoteAddress, ConnectorInterface $connector = null)
     {
-        $this->remoteAddress = $remoteAddress;
-        $this->uri = new Uri($this->remoteAddress);
+        $this->uri = new Uri($remoteAddress);
+
         $port = $this->uri->getPort() ?? 80;
 
-        if (!in_array($this->uri->getScheme(), ['ws', 'wss'])) {
+        if (!in_array($this->uri->getScheme(), ['ws', 'wss'], true)) {
             throw new \InvalidArgumentException('WebSocket address must use ws: or wss: scheme');
         }
 
         $connectUri = '';
         if ($this->uri->getScheme() === 'wss') {
             $connectUri = 'tls://';
-            $port = $this->uri->getPort() ?? 443;;
+
+            $port = $this->uri->getPort() ?? 443;
         }
 
         $this->connectUri = $connectUri . $this->uri->getHost() . ':' . $port;
-
-        $this->connector = $connector;
+        $this->connector  = $connector;
     }
 
     public function startTransportProvider(Client $peer, LoopInterface $loop)
@@ -67,7 +68,7 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
         Logger::info($this, 'Starting Transport');
 
         $this->client = $peer;
-        $this->loop = $loop;
+        $this->loop   = $loop;
 
         $this->connector = $this->connector ?? new Connector($loop);
 
@@ -99,10 +100,10 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
                 }
 
                 $bodyParts = substr($header, $headerEnd + 4);
-                $header = substr($header, 0, $headerEnd + 1);
+                $header    = substr($header, 0, $headerEnd + 1);
 
                 $response = parse_response($header);
-                $rv = new ResponseVerifier();
+                $rv       = new ResponseVerifier();
                 if (!$rv->verifyAll($request, $response)) {
                     Logger::error($this, 'Invalid response to websocket handshake');
                     $conn->close();
@@ -116,7 +117,7 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
                     function (Message $message) use ($serializer) {
                         $this->client->onMessage($this->transport, $serializer->deserialize($message->getPayload()));
                     },
-                    function (\Ratchet\RFC6455\Messaging\FrameInterface $frame, MessageBuffer $messageBuffer) use ($conn) {
+                    function (FrameInterface $frame, MessageBuffer $messageBuffer) use ($conn) {
                         switch ($frame->getOpcode()) {
                             case Frame::OP_PING:
                                 $conn->write((new Frame($frame->getPayload(), true, Frame::OP_PONG))->maskPayload()->getContents());
@@ -138,8 +139,10 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
                 });
 
                 // setup the transport
-                $this->transport = new class($mb) extends AbstractTransport {
+                $this->transport = new class($mb) extends AbstractTransport
+                {
                     private $mb;
+
                     public function __construct(MessageBuffer $mb)
                     {
                         $this->mb = $mb;
