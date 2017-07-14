@@ -46,7 +46,7 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
     {
         $this->uri = new Uri($remoteAddress);
 
-        $port = $this->uri->getPort() ?? 80;
+        $port = $this->uri->getPort() ?: 80;
 
         if (!in_array($this->uri->getScheme(), ['ws', 'wss'], true)) {
             throw new \InvalidArgumentException('WebSocket address must use ws: or wss: scheme');
@@ -56,7 +56,7 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
         if ($this->uri->getScheme() === 'wss') {
             $connectUri = 'tls://';
 
-            $port = $this->uri->getPort() ?? 443;
+            $port = $this->uri->getPort() ?: 443;
         }
 
         $this->connectUri = $connectUri . $this->uri->getHost() . ':' . $port;
@@ -70,7 +70,7 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
         $this->client = $peer;
         $this->loop   = $loop;
 
-        $this->connector = $this->connector ?? new Connector($loop);
+        $this->connector = $this->connector ?: new Connector($loop);
 
         /** @var PromiseInterface $promise */
         $promise = $this->connector->connect($this->connectUri);
