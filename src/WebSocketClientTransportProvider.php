@@ -138,27 +138,7 @@ class WebSocketClientTransportProvider extends AbstractClientTransportProvider
                     $mb->onData($data);
                 });
 
-                // setup the transport
-                $this->transport = new class($mb) extends AbstractTransport
-                {
-                    private $mb;
-
-                    public function __construct(MessageBuffer $mb)
-                    {
-                        $this->mb = $mb;
-                    }
-
-                    public function getTransportDetails()
-                    {
-                        return [];
-                    }
-
-                    public function sendMessage(\Thruway\Message\Message $msg)
-                    {
-                        $this->mb->sendMessage($this->getSerializer()->serialize($msg));
-                    }
-                };
-                $this->transport->setSerializer(new JsonSerializer());
+                $this->transport = new WebSocketClientTransport($mb, $serializer);
                 $this->client->onOpen($this->transport);
 
                 $mb->onData($bodyParts);
